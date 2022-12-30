@@ -9,7 +9,9 @@ module.exports = {
         if(fs.existsSync(path)) {
             res.sendFile(path)
         } else {
-            res.sendFile(__dirname.replace(`/endpoints`, ``) + `/html/assets/img/null.png`)
+            if(fs.existsSync(path.replace(`/images/`, `/img/`))) {
+                res.sendFile(path.replace(`/images/`, `/img/`))
+            } else res.sendFile(__dirname.replace(`/endpoints`, ``) + `/html/assets/img/null.png`)
         }
     }
 }
