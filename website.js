@@ -2,7 +2,10 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-const fs = require('fs')
+global.placeholders = {};
+require(`./utils/placeholders`)()
+
+const fs = require('fs');
 
 const update = process.argv.indexOf(`--debug`) !== -1 ? () => new Promise(r => r(console.log(`not updating, debug enabled`))) : require(`./utils/update`)
 
@@ -14,12 +17,51 @@ update().then(async () => {
 
     console.log(`registered endpoints:`, endpoints);
 
-    for (e of endpoints) {
+    for (let e of endpoints) {
         const method = (e && e.method && typeof e.method == `string` && typeof app[e.method.toLowerCase()] == `function` ? e.method : `get`).toLowerCase();
-        console.log(`Registering [${method.toUpperCase()}] / ${e.endpoint}`)
 
         try {
-            app[method](e.endpoint, e.func);
+            const addMethod = (method, endpoint) => {
+                if(!endpoint.startsWith(`/`)) endpoint = `/` + endpoint;
+
+                console.log(`Registering [${method.toUpperCase()}] / ${endpoint}`)
+
+                app[method](endpoint, async (req, res) => e.func(req, Object.assign(res, {
+                    origSend: res.send,
+                    send: (content) => {
+                        if(typeof content == `string`) {
+                            const navbar = require(`./utils/components/navbar`)();
+                            const footer = require(`./utils/components/footer`)();
+                            const heading = require(`./utils/components/heading`)();
+    
+                            let c2 = content.split(`\n`);
+                            const tabWidth = c2[c2.findIndex(s => s.startsWith(`<body `)) + 1].split(`<`)[0]
+
+                            if(e.title) c2.splice(c2.findIndex(s => s.startsWith(`<body `)) + 1, 0, ...heading.map(s => s.replace('{{title}}', e.title)));
+    
+                            //c2.splice(c2.findIndex(s => s.startsWith(`<body `)) + 1, 0, ...require(`./utils/navbar`).map(s => s.split(` `).filter(s => !s.startsWith(`sticky-`)).join(` `).replace(`backdrop-filter: blur(10px)`, `opacity: 0%`)), ...require(`./utils/navbar`));
+                            c2.splice(c2.findIndex(s => s.startsWith(`<body `)) + 1, 0, ...navbar);
+                            c2.splice(c2.findIndex(s => s.startsWith(`</body`)), 0, ...footer);
+    
+                            content = c2.join(`\n`);
+    
+                            Object.entries(global.placeholders).forEach((o) => {
+                                while(content.includes(`{{${o[0]}}}`)) {
+                                    content = content.replace(`{{${o[0]}}}`, o[1])
+                                }
+                            })
+    
+                            res.origSend(content);
+                        } else res.origSend(content)
+                    }
+                })));
+            }
+
+            if(e.endpoints) {
+                e.endpoints.forEach(endpoint => addMethod(method, endpoint))
+            } else {
+                addMethod(method, e.endpoint)
+            }
         } catch(e) {
             console.log(`Failed to register [${method.toUpperCase()}] / ${e.endpoint}: ${e}`)
         }
