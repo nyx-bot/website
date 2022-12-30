@@ -26,35 +26,43 @@ update().then(async () => {
 
                 console.log(`Registering [${method.toUpperCase()}] / ${endpoint}`)
 
-                app[method](endpoint, async (req, res) => e.func(req, Object.assign(res, {
-                    origSend: res.send,
-                    send: (content) => {
-                        if(typeof content == `string`) {
-                            const navbar = require(`./utils/components/navbar`)();
-                            const footer = require(`./utils/components/footer`)();
-                            const heading = require(`./utils/components/heading`)();
+                app[method](endpoint, async (req, res) => {
+                    console.log(`${req.method} / ${req.originalUrl} -- mapped? ${endpoint}`)
+                    e.func(req, Object.assign(res, {
+                        origSend: res.send,
+                        send: (content) => {
+                            if(typeof content == `string`) {
+                                const navbar = require(`./utils/components/navbar`)();
+                                const footer = require(`./utils/components/footer`)();
+                                const heading = require(`./utils/components/heading`)();
+        
+                                let c2 = content.split(`\n`);
+                                const tabWidth = c2[c2.findIndex(s => s.startsWith(`<body `)) + 1].split(`<`)[0]
     
-                            let c2 = content.split(`\n`);
-                            const tabWidth = c2[c2.findIndex(s => s.startsWith(`<body `)) + 1].split(`<`)[0]
+                                if(e.title) c2.splice(c2.findIndex(s => s.startsWith(`<body `)) + 1, 0, ...heading.map(s => s.replace('{{title}}', e.title)));
+        
+                                //c2.splice(c2.findIndex(s => s.startsWith(`<body `)) + 1, 0, ...require(`./utils/navbar`).map(s => s.split(` `).filter(s => !s.startsWith(`sticky-`)).join(` `).replace(`backdrop-filter: blur(10px)`, `opacity: 0%`)), ...require(`./utils/navbar`));
+                                c2.splice(c2.findIndex(s => s.startsWith(`<body `)) + 1, 0, ...navbar);
+                                c2.splice(c2.findIndex(s => s.startsWith(`</body`)), 0, ...footer);
+        
+                                content = c2.join(`\n`);
+        
+                                Object.entries(global.placeholders).forEach((o) => {
+                                    while(content.includes(`{{${o[0]}}}`)) {
+                                        content = content.replace(`{{${o[0]}}}`, o[1])
+                                    }
+                                })
+        
+                                res.origSend(content);
+                            } else res.origSend(content)
+                        }
+                    }))
+                });
 
-                            if(e.title) c2.splice(c2.findIndex(s => s.startsWith(`<body `)) + 1, 0, ...heading.map(s => s.replace('{{title}}', e.title)));
-    
-                            //c2.splice(c2.findIndex(s => s.startsWith(`<body `)) + 1, 0, ...require(`./utils/navbar`).map(s => s.split(` `).filter(s => !s.startsWith(`sticky-`)).join(` `).replace(`backdrop-filter: blur(10px)`, `opacity: 0%`)), ...require(`./utils/navbar`));
-                            c2.splice(c2.findIndex(s => s.startsWith(`<body `)) + 1, 0, ...navbar);
-                            c2.splice(c2.findIndex(s => s.startsWith(`</body`)), 0, ...footer);
-    
-                            content = c2.join(`\n`);
-    
-                            Object.entries(global.placeholders).forEach((o) => {
-                                while(content.includes(`{{${o[0]}}}`)) {
-                                    content = content.replace(`{{${o[0]}}}`, o[1])
-                                }
-                            })
-    
-                            res.origSend(content);
-                        } else res.origSend(content)
-                    }
-                })));
+                app.use((req, res, next) => {
+                    console.log(`${req.method} / ${req.originalUrl} -- mapped? none.`);
+                    next()
+                })
             }
 
             if(e.endpoints) {
