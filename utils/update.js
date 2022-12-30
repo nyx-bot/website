@@ -1,7 +1,5 @@
 module.exports = () => new Promise((res, rej) => {
     console.log(`Checking for updates...`);
-
-    return console.log(`*checks for updates*`)
     
     cp.exec(`git reset --hard`, (err, out, stderr) => {
         if(!err) {
