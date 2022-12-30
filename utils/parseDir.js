@@ -31,6 +31,8 @@ const parseDir = (dir) => {
 
             const conf = {
                 endpoint: f.endpoint || dir.replace(__dirname + `/`, ``).split(`.`).slice(0, -1).join(`.`) || null,
+                endpoints: f.endpoints || null,
+                title: f.title || null,
                 func: typeof f.func == `function` ? f.func : typeof f == `function` ? f : null,
             };
 
